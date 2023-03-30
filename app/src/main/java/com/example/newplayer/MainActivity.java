@@ -17,9 +17,11 @@ public class MainActivity extends AppCompatActivity  implements Runnable{
     // создание полей
     private MediaPlayer mediaPlayer = new MediaPlayer(); // создание поля медиа-плеера
     private SeekBar seekBar; // создание поля SeekBar
+    private SeekBar volBar; // создание поля volBar
     private boolean wasPlaying = false; // поле проигрывания аудио-файла
     private FloatingActionButton fabPlayPause; // поле кнопки проигрывания и постановки на паузу аудиофайла
     private TextView seekBarHint; // поле информации у SeekBar
+    private TextView textVolHint; // поле информации у volBar
 
 
     @Override
@@ -31,6 +33,8 @@ public class MainActivity extends AppCompatActivity  implements Runnable{
         fabPlayPause = findViewById(R.id.fabPlayPause);
         seekBarHint = findViewById(R.id.seekBarHint);
         seekBar = findViewById(R.id.seekBar);
+        volBar = findViewById(R.id.volBar);
+        textVolHint = findViewById(R.id.textVolHint);
 
         // создание слушателя нажатия кнопки fabPlayPause
         fabPlayPause.setOnClickListener(new View.OnClickListener() {
@@ -39,11 +43,32 @@ public class MainActivity extends AppCompatActivity  implements Runnable{
                 playSong(); // воспроизведение музыки
             }
         });
+        volBar.setProgress(100);
+        volBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                textVolHint.setVisibility(View.VISIBLE);
+                textVolHint.setText("" + volBar.getProgress() + "%");
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                float vol = volBar.getProgress();
+                mediaPlayer.setVolume(vol/100, vol/100);
+
+            }
+        });
+
 
         // создание слушателя изменения SeekBar
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             // метод при перетаскивании ползунка по шкале,
-            // где progress позволяет получить нове значение ползунка (позже progress назрачается длина трека в миллисекундах)
+            // где progress позволяет получить новое значение ползунка (позже progress назрачается длина трека в миллисекундах)
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromTouch) {
                 seekBarHint.setVisibility(View.VISIBLE); // установление видимости seekBarHint
@@ -72,12 +97,8 @@ public class MainActivity extends AppCompatActivity  implements Runnable{
                 // 0.92 - поправочный коэффициент (так как seekBar занимает не всю ширину своего контейнера)
                 seekBarHint.setX(seekBar.getX() + Math.round(seekBar.getWidth()*percentTrack*0.92));
 
-                if (progress > 0 && mediaPlayer != null && !mediaPlayer.isPlaying()) { // если mediaPlayer не пустой и mediaPlayer не воспроизводится
-                    clearMediaPlayer();
-                    // назначение кнопке картинки play
-                    fabPlayPause.setImageDrawable(ContextCompat.getDrawable(MainActivity.this, android.R.drawable.ic_media_play));
-                    MainActivity.this.seekBar.setProgress(0); // установление seekBar значения 0
-                }
+
+
             }
             // метод при начале перетаскивания ползунка по шкале
             @Override
@@ -99,11 +120,20 @@ public class MainActivity extends AppCompatActivity  implements Runnable{
         try { // обработка исключения на случай отстутствия файла
             if (mediaPlayer != null && mediaPlayer.isPlaying()) { // если mediaPlayer не пустой и mediaPlayer воспроизводится
 
-                clearMediaPlayer(); // остановка и очиска MediaPlayer
-                seekBar.setProgress(0); // присваивание seekBar значения 0
-                wasPlaying = true; // инициализация значения запуска аудио-файла
+                wasPlaying = true;
                 // назначение кнопке картинки play
                 fabPlayPause.setImageDrawable(ContextCompat.getDrawable(MainActivity.this, android.R.drawable.ic_media_play));
+                mediaPlayer.pause();
+                new Thread(this).interrupt();
+
+            }
+
+            if (mediaPlayer != null && !wasPlaying) { // если mediaPlayer не пустой и mediaPlayer не воспроизводится
+
+                // назначение кнопке картинки play
+                fabPlayPause.setImageDrawable(ContextCompat.getDrawable(MainActivity.this, android.R.drawable.ic_media_pause));
+                mediaPlayer.start();
+                new Thread(this).start();
 
             }
 
@@ -121,7 +151,6 @@ public class MainActivity extends AppCompatActivity  implements Runnable{
                 descriptor.close(); // закрытие дескриптора
 
                 mediaPlayer.prepare(); // ассинхронная подготовка плейера к проигрыванию
-                //mediaPlayer.setVolume(0.7f, 0.7f); // задание уровня громкости левого и правого динамиков
                 mediaPlayer.setLooping(false); // назначение отстутствия повторов
                 seekBar.setMax(mediaPlayer.getDuration()); // ограниечение seekBar длинной трека
 
@@ -163,10 +192,12 @@ public class MainActivity extends AppCompatActivity  implements Runnable{
                 Thread.sleep(1000); // засыпание вспомогательного потока на 1 секунду
                 currentPosition = mediaPlayer.getCurrentPosition(); // обновление текущей позиции трека
 
-            } catch (InterruptedException e) { // вызывается в случае блокировки данного потока
+            }
+            catch (InterruptedException e) { // вызывается в случае блокировки данного потока
                 e.printStackTrace();
                 return; // выброс из цикла
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 return;
             }
 
